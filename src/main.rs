@@ -1,7 +1,7 @@
 mod style;
 mod utils;
-mod panel;
 mod commands;
+mod plugins;
 mod cli;
 
 use clap::Parser;

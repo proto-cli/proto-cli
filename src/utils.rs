@@ -8,6 +8,7 @@ pub struct ProtoConfig {
     pub install_dir: Option<String>,
     pub color: Option<bool>,
     pub completions_installed: Option<bool>,
+    pub custom_repos: Option<Vec<String>>,
 }
 
 impl Default for ProtoConfig {
@@ -17,6 +18,7 @@ impl Default for ProtoConfig {
             install_dir: None,
             color: Some(true),
             completions_installed: Some(false),
+            custom_repos: None,
         }
     }
 }
@@ -127,20 +129,6 @@ pub fn which(binary: &str) -> bool {
         .unwrap_or(false)
 }
 
-pub fn format_size(bytes: u64) -> String {
-    const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
-    if bytes < 1024 {
-        return format!("{} B", bytes);
-    }
-    let mut v = bytes as f64;
-    let mut i = 0;
-    while v >= 1024.0 && i < UNITS.len() - 1 {
-        v /= 1024.0;
-        i += 1;
-    }
-    format!("{:.1} {}", v, UNITS[i])
-}
-
 pub fn run_command(program: &str, args: &[&str]) -> std::io::Result<std::process::ExitStatus> {
     Command::new(program)
         .args(args)
@@ -153,11 +141,6 @@ pub fn run_command(program: &str, args: &[&str]) -> std::io::Result<std::process
 pub fn run_command_output(program: &str, args: &[&str]) -> std::io::Result<String> {
     let output = Command::new(program).args(args).output()?;
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
-}
-
-pub fn os_name() -> String {
-    run_command_output("uname", &["-sr"])
-        .unwrap_or_else(|_| "Unknown".to_string())
 }
 
 pub fn distro_name() -> String {

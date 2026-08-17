@@ -24,24 +24,11 @@ pub enum PkgAction {
     },
     #[command(about = "List installed packages")]
     List,
-    #[command(about = "Build a portable package installer")]
-    Build {
-        #[command(subcommand)]
-        action: crate::commands::pkg_build::BuildAction,
-    },
 }
 
 pub fn run(action: &PkgAction) {
     use crate::utils::{self, PackageManager};
     use crate::style;
-
-    if matches!(action, PkgAction::Build { .. }) {
-        crate::commands::pkg_build::run(match action {
-            PkgAction::Build { action } => action,
-            _ => unreachable!(),
-        });
-        return;
-    }
 
     let pm = utils::default_package_manager();
     if pm == PackageManager::Unknown {
@@ -60,7 +47,6 @@ pub fn run(action: &PkgAction) {
         PkgAction::Remove { packages } => remove(&pm, packages),
         PkgAction::Update { package } => update(&pm, package.as_deref()),
         PkgAction::List => list(&pm),
-        PkgAction::Build { .. } => unreachable!(),
     };
 
     if let Err(e) = result {

@@ -3,7 +3,6 @@ use owo_colors::OwoColorize;
 pub struct Theme;
 
 impl Theme {
-    pub const PROTO: &'static str = "cyan";
     pub const HEADER: owo_colors::Style = owo_colors::Style::new().bold().bright_blue();
     pub const ACCENT: owo_colors::Style = owo_colors::Style::new().bold().cyan();
     pub const MUTED: owo_colors::Style = owo_colors::Style::new().dimmed();
@@ -13,50 +12,6 @@ impl Theme {
     pub const BOLD: owo_colors::Style = owo_colors::Style::new().bold();
     pub const LABEL: owo_colors::Style = owo_colors::Style::new().bright_cyan();
     pub const VALUE: owo_colors::Style = owo_colors::Style::new().bright_white();
-}
-
-pub enum ProtoStyle {
-    Header,
-    Accent,
-    Muted,
-    Success,
-    Warn,
-    Error,
-    Bold,
-    Label,
-    Value,
-}
-
-impl ProtoStyle {
-    pub fn style(&self) -> owo_colors::Style {
-        match self {
-            ProtoStyle::Header => Theme::HEADER,
-            ProtoStyle::Accent => Theme::ACCENT,
-            ProtoStyle::Muted => Theme::MUTED,
-            ProtoStyle::Success => Theme::SUCCESS,
-            ProtoStyle::Warn => Theme::WARN,
-            ProtoStyle::Error => Theme::ERROR,
-            ProtoStyle::Bold => Theme::BOLD,
-            ProtoStyle::Label => Theme::LABEL,
-            ProtoStyle::Value => Theme::VALUE,
-        }
-    }
-}
-
-pub trait ProtoStyled {
-    fn proto_style(self, style: ProtoStyle) -> String;
-}
-
-impl<'a> ProtoStyled for &'a str {
-    fn proto_style(self, style: ProtoStyle) -> String {
-        self.style(style.style()).to_string()
-    }
-}
-
-impl ProtoStyled for String {
-    fn proto_style(self, style: ProtoStyle) -> String {
-        self.style(style.style()).to_string()
-    }
 }
 
 pub struct Spinner {
@@ -74,10 +29,6 @@ impl Spinner {
             );
         sp.enable_steady_tick(std::time::Duration::from_millis(80));
         Self { spinner: sp }
-    }
-
-    pub fn update(&self, msg: &str) {
-        self.spinner.set_message(msg.to_string());
     }
 
     pub fn done(&self, msg: &str) {
