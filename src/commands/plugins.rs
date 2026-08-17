@@ -9,7 +9,7 @@ pub enum PluginsAction {
     List,
     #[command(about = "Install a plugin")]
     Add {
-        #[arg(value_name = "PLUGIN", help = "Plugin name (e.g. mc-server, @proto/mc-server)")]
+        #[arg(value_name = "PLUGIN", help = "Plugin name (e.g. mc, @proto/mc)")]
         plugin: String,
     },
     #[command(about = "Remove an installed plugin")]
