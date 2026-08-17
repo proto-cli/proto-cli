@@ -57,13 +57,12 @@ fn print_general_help() {
     );
     print_cmd("plugins", "list|add|remove|update", "Manage proto plugins");
 
-    let installed = crate::plugins::registry::list_plugins();
-    let plugin_cmds: Vec<_> = installed.iter().filter(|p| p.installed).collect();
-    if !plugin_cmds.is_empty() {
+    let discovered = crate::plugins::discovery::scan_installed_plugins();
+    if !discovered.is_empty() {
         println!("\n{}", "PLUGINS:".style(style::Theme::HEADER));
-        for plugin in &plugin_cmds {
-            for cmd in &plugin.commands {
-                print_cmd(cmd, "", &format!("@{}/{}", plugin.scope, plugin.name));
+        for (info, _) in &discovered {
+            for cmd in info.commands.keys() {
+                print_cmd(cmd, "", &format!("@{}/{}", info.scope, info.name));
             }
         }
     }
@@ -175,15 +174,13 @@ fn print_command_help(command: &str) {
             println!("  Registry is synced from GitHub: proto-cli/plugins");
         }
         other => {
-            let installed = crate::plugins::registry::list_plugins();
-            for plugin in &installed {
-                if plugin.installed && plugin.commands.iter().any(|c| c == other) {
-                    if let Some(binary) = crate::plugins::discovery::find_plugin_binary(&plugin.scope, &plugin.name) {
-                        if let Err(e) = crate::plugins::execute::execute_plugin(&binary, &["--help".to_string()]) {
-                            eprintln!("Plugin error: {}", e);
-                        }
-                        return;
+            let discovered = crate::plugins::discovery::scan_installed_plugins();
+            for (info, binary) in &discovered {
+                if info.commands.keys().any(|c| c == other) {
+                    if let Err(e) = crate::plugins::execute::execute_plugin(binary, &["--help".to_string()]) {
+                        eprintln!("Plugin error: {}", e);
                     }
+                    return;
                 }
             }
             println!(
