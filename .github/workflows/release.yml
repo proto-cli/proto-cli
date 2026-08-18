@@ -50,12 +50,6 @@ jobs:
           NEW="v${MAJOR}.${MINOR}.${PATCH}"
           echo "tag=$NEW" >> $GITHUB_OUTPUT
 
-      - uses: dtolnay/rust-toolchain@stable
-
-      - name: Build release
-        if: steps.bump.outputs.type != 'none'
-        run: cargo build --release
-
       - name: Create release
         if: steps.bump.outputs.type != 'none'
         uses: softprops/action-gh-release@v2
@@ -63,4 +57,37 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.tag }}
           body: ${{ github.event.head_commit.message }}
-          files: target/release/proto
+          draft: false
+          prerelease: false
+
+  build:
+    needs: release
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            asset: proto-x86_64-unknown-linux-gnu
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            asset: proto-aarch64-apple-darwin
+          - target: x86_64-apple-darwin
+            os: macos-13
+            asset: proto-x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Upload binary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp target/${{ matrix.target }}/release/proto ${{ matrix.asset }}
+          gh release upload "${{ needs.release.outputs.tag || github.ref_name }}" ${{ matrix.asset }} --repo ${{ github.repository }} --clobber
