@@ -10,23 +10,10 @@ repository = "https://github.com/foxy/proto"
 clap = { version = "4", features = ["derive"] }
 owo-colors = "4"
 indicatif = "0.17"
-dialoguer = "0.11"
+dialoguer = { version = "0.11", features = ["fuzzy-select"] }
 sysinfo = "0.31"
 dirs = "5"
 toml = "0.8"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 ureq = { version = "2", features = ["json"] }
-zip = "1"
-flate2 = "1"
-crc32fast = "1"
-base64 = "0.22"
-sha2 = "0.10"
-sha1 = "0.10"
-md-5 = "0.10"
-uuid = { version = "1", features = ["v4"] }
-bcrypt = "0.15"
-regex = "1"
-qrcode = "0.14"
-pulldown-cmark = "0.13"
-image = { version = "0.25", default-features = false, features = ["png"] }

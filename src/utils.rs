@@ -25,7 +25,7 @@ impl Default for ProtoConfig {
 
 pub fn config_dir() -> PathBuf {
     dirs::config_dir()
-        .unwrap_or_else(|| PathBuf::from("~/.config").into())
+        .unwrap_or_else(|| dirs::home_dir().unwrap_or_default().join(".config"))
         .join("proto")
 }
 

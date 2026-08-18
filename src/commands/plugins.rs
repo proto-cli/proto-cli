@@ -7,6 +7,10 @@ use owo_colors::OwoColorize;
 pub enum PluginsAction {
     #[command(about = "List all available and installed plugins")]
     List,
+    #[command(about = "Search and install plugins interactively")]
+    Search,
+    #[command(about = "List all available plugins from the registry")]
+    ListAvailable,
     #[command(about = "Install a plugin")]
     Add {
         #[arg(value_name = "PLUGIN", help = "Plugin name (e.g. mc, @proto/mc)")]
@@ -32,6 +36,8 @@ pub enum PluginsAction {
 pub fn run(action: &PluginsAction) {
     match action {
         PluginsAction::List => list_plugins(),
+        PluginsAction::Search => plugins::search::search_and_install(),
+        PluginsAction::ListAvailable => plugins::search::list_available(),
         PluginsAction::Add { plugin } => {
             if let Err(e) = plugins::install::install_plugin(plugin) {
                 println!("{}", format!("Error: {}", e).style(style::Theme::ERROR));

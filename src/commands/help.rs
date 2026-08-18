@@ -55,7 +55,16 @@ fn print_general_help() {
         "update|uninstall|reset",
         "Manage the Proto CLI itself",
     );
-    print_cmd("plugins", "list|add|remove|update", "Manage proto plugins");
+    print_cmd(
+        "plugins",
+        "list|search|add|remove|update",
+        "Manage proto plugins",
+    );
+    print_cmd(
+        "completions",
+        "<shell> [--install]",
+        "Generate shell completion scripts",
+    );
 
     let discovered = crate::plugins::discovery::scan_installed_plugins();
     if !discovered.is_empty() {
@@ -165,6 +174,8 @@ fn print_command_help(command: &str) {
             println!("  Install, update, and manage proto plugins.\n");
             println!("{}", "USAGE:".style(style::Theme::HEADER));
             println!("  proto plugins list                    List all installed plugins");
+            println!("  proto plugins search                  Search & install plugins interactively");
+            println!("  proto plugins list-available          List all available plugins");
             println!("  proto plugins add @scope/name         Install a plugin");
             println!("  proto plugins remove @scope/name      Uninstall a plugin");
             println!("  proto plugins update @scope/name      Update a plugin");
@@ -172,6 +183,20 @@ fn print_command_help(command: &str) {
             println!("{}", "INFO:".style(style::Theme::HEADER));
             println!("  Plugins are pre-compiled binaries installed to ~/.config/proto/plugins/");
             println!("  Registry is synced from GitHub: proto-cli/plugins");
+        }
+        "completions" => {
+            println!("{}", "proto completions".style(style::Theme::HEADER));
+            println!("  Generate shell completion scripts.\n");
+            println!("{}", "USAGE:".style(style::Theme::HEADER));
+            println!("  proto completions bash                Print bash completions to stdout");
+            println!("  proto completions zsh                 Print zsh completions to stdout");
+            println!("  proto completions fish                Print fish completions to stdout");
+            println!("  proto completions bash --install      Install to proto config dir");
+            println!("  proto completions zsh --install       Install to proto config dir");
+            println!("  proto completions fish --install      Install to proto config dir\n");
+            println!("{}", "DETAILS:".style(style::Theme::HEADER));
+            println!("  Completions include all installed plugins dynamically.");
+            println!("  Use --install to save scripts to ~/.config/proto/completions/");
         }
         other => {
             let discovered = crate::plugins::discovery::scan_installed_plugins();

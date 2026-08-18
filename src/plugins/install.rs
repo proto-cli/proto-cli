@@ -1,8 +1,11 @@
 use super::{PluginInfo, PluginManifest, InstalledPlugin, plugin_dir};
 use super::registry;
+use crate::globals;
 use crate::style;
+use indicatif::{ProgressBar, ProgressStyle};
 use owo_colors::OwoColorize;
 use std::fs;
+use std::io::Read;
 use std::path::PathBuf;
 
 const GITHUB_API_BASE: &str = "https://api.github.com/repos/proto-cli/plugins";
@@ -13,33 +16,43 @@ pub fn install_plugin(reference: &str) -> Result<(), String> {
 
     let installed_dir = plugin_dir(&scope, &name);
     if installed_dir.exists() {
-        println!(
-            "{}",
-            format!("Plugin {} is already installed", reference).style(style::Theme::SUCCESS)
-        );
+        if !globals::is_quiet() {
+            println!(
+                "{}",
+                format!("Plugin {} is already installed", reference).style(style::Theme::SUCCESS)
+            );
+        }
         return Ok(());
     }
 
-    println!(
-        "{}",
-        format!("Installing {}...", reference).style(style::Theme::HEADER)
-    );
+    if !globals::is_quiet() {
+        println!(
+            "{}",
+            format!("Installing {}...", reference).style(style::Theme::HEADER)
+        );
+    }
 
     let release = fetch_latest_release(&name)?;
 
     if let Some(release) = release {
-        println!(
-            "{}",
-            format!("Found release v{}", release.tag_name).style(style::Theme::MUTED)
-        );
+        if !globals::is_quiet() {
+            println!(
+                "{}",
+                format!("Found release {}", release.tag_name).style(style::Theme::MUTED)
+            );
+        }
         download_release_binary(&name, &release, &installed_dir)?;
     } else {
-        println!(
-            "{}",
-            "No pre-compiled release found.".style(style::Theme::WARN)
-        );
+        if !globals::is_quiet() {
+            println!(
+                "{}",
+                "No pre-compiled release found.".style(style::Theme::WARN)
+            );
+        }
         if crate::utils::which("cargo") {
-            println!("{}", "Compiling from source...".style(style::Theme::MUTED));
+            if !globals::is_quiet() {
+                println!("{}", "Compiling from source...".style(style::Theme::MUTED));
+            }
             compile_from_source(&name, &installed_dir)?;
         } else {
             return Err(format!(
@@ -66,19 +79,21 @@ pub fn install_plugin(reference: &str) -> Result<(), String> {
 
     registry::add_plugin(plugin)?;
 
-    println!(
-        "{}",
-        format!("Successfully installed {} v{}", reference, info.version)
-            .style(style::Theme::SUCCESS)
-    );
-    println!(
-        "{}",
-        format!(
-            "Run 'proto {} --help' to get started",
-            info.commands.keys().next().unwrap_or(&info.name)
-        )
-        .style(style::Theme::MUTED)
-    );
+    if !globals::is_quiet() {
+        println!(
+            "{}",
+            format!("Successfully installed {} v{}", reference, info.version)
+                .style(style::Theme::SUCCESS)
+        );
+        println!(
+            "{}",
+            format!(
+                "Run 'proto {} --help' to get started",
+                info.commands.keys().next().unwrap_or(&info.name)
+            )
+            .style(style::Theme::MUTED)
+        );
+    }
 
     Ok(())
 }
@@ -91,20 +106,37 @@ pub fn remove_plugin(reference: &str) -> Result<(), String> {
         return Err(format!("Plugin {} is not installed", reference));
     }
 
-    println!(
-        "{}",
-        format!("Removing {}...", reference).style(style::Theme::HEADER)
-    );
+    if !globals::is_quiet() {
+        let prompt = format!("Remove plugin {}?", reference);
+        let confirmed = dialoguer::Confirm::new()
+            .with_prompt(&prompt)
+            .default(false)
+            .interact()
+            .map_err(|e| format!("Failed to get confirmation: {}", e))?;
+
+        if !confirmed {
+            return Ok(());
+        }
+    }
+
+    if !globals::is_quiet() {
+        println!(
+            "{}",
+            format!("Removing {}...", reference).style(style::Theme::HEADER)
+        );
+    }
 
     fs::remove_dir_all(&installed_dir)
         .map_err(|e| format!("Failed to remove plugin directory: {}", e))?;
 
     registry::remove_plugin(&name)?;
 
-    println!(
-        "{}",
-        format!("Successfully removed {}", reference).style(style::Theme::SUCCESS)
-    );
+    if !globals::is_quiet() {
+        println!(
+            "{}",
+            format!("Successfully removed {}", reference).style(style::Theme::SUCCESS)
+        );
+    }
     Ok(())
 }
 
@@ -207,52 +239,68 @@ struct GitHubAsset {
 }
 
 fn fetch_latest_release(plugin_name: &str) -> Result<Option<GitHubRelease>, String> {
-    let url = format!("{}/releases/latest", GITHUB_API_BASE);
+    let config = crate::utils::load_config();
+    let mut urls = vec![format!("{}/releases/latest", GITHUB_API_BASE)];
 
-    let agent = ureq::Agent::new();
-    let response = agent
-        .get(&url)
-        .set("User-Agent", "proto-cli")
-        .call();
-
-    match response {
-        Ok(resp) => {
-            let body: serde_json::Value = resp.into_json().unwrap_or_default();
-            let tag = body["tag_name"].as_str().unwrap_or("").to_string();
-            let assets: Vec<GitHubAsset> = body["assets"]
-                .as_array()
-                .map(|arr| {
-                    arr.iter()
-                        .map(|a| GitHubAsset {
-                            name: a["name"].as_str().unwrap_or("").to_string(),
-                            browser_download_url: a["browser_download_url"]
-                                .as_str()
-                                .unwrap_or("")
-                                .to_string(),
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
-
-            if tag.is_empty() {
-                return Ok(None);
-            }
-
-            let binary_name = get_binary_name_for_platform(plugin_name);
-            let has_binary = assets.iter().any(|a| a.name.contains(&binary_name));
-
-            if has_binary {
-                Ok(Some(GitHubRelease {
-                    tag_name: tag,
-                    assets,
-                }))
-            } else {
-                Ok(None)
+    if let Some(custom_repos) = config.custom_repos {
+        for repo in custom_repos {
+            let api_url = repo
+                .replace("https://github.com/", "https://api.github.com/repos/")
+                .replace("http://github.com/", "https://api.github.com/repos/")
+                .replace("github.com/", "https://api.github.com/repos/");
+            if !api_url.contains("/releases/latest") {
+                urls.push(format!("{}/releases/latest", api_url));
             }
         }
-        Err(ureq::Error::Status(404, _)) => Ok(None),
-        Err(e) => Err(format!("Failed to check releases: {}", e)),
     }
+
+    let agent = ureq::Agent::new();
+
+    for url in &urls {
+        let response = agent
+            .get(url)
+            .set("User-Agent", "proto-cli")
+            .call();
+
+        match response {
+            Ok(resp) => {
+                let body: serde_json::Value = resp.into_json().unwrap_or_default();
+                let tag = body["tag_name"].as_str().unwrap_or("").to_string();
+                let assets: Vec<GitHubAsset> = body["assets"]
+                    .as_array()
+                    .map(|arr| {
+                        arr.iter()
+                            .map(|a| GitHubAsset {
+                                name: a["name"].as_str().unwrap_or("").to_string(),
+                                browser_download_url: a["browser_download_url"]
+                                    .as_str()
+                                    .unwrap_or("")
+                                    .to_string(),
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
+                if tag.is_empty() {
+                    continue;
+                }
+
+                let binary_name = get_asset_name_for_platform(plugin_name);
+                let has_binary = assets.iter().any(|a| a.name.contains(&binary_name));
+
+                if has_binary {
+                    return Ok(Some(GitHubRelease {
+                        tag_name: tag,
+                        assets,
+                    }));
+                }
+            }
+            Err(ureq::Error::Status(404, _)) => continue,
+            Err(_) => continue,
+        }
+    }
+
+    Ok(None)
 }
 
 fn download_release_binary(
@@ -260,7 +308,7 @@ fn download_release_binary(
     release: &GitHubRelease,
     install_dir: &PathBuf,
 ) -> Result<(), String> {
-    let binary_name = get_binary_name_for_platform(plugin_name);
+    let binary_name = get_asset_name_for_platform(plugin_name);
     let asset = release
         .assets
         .iter()
@@ -272,10 +320,12 @@ fn download_release_binary(
 
     let binary_path = install_dir.join("bin").join(plugin_name);
 
-    println!(
-        "{}",
-        format!("Downloading {}...", asset.name).style(style::Theme::MUTED)
-    );
+    if !globals::is_quiet() {
+        println!(
+            "{}",
+            format!("Downloading {}...", asset.name).style(style::Theme::MUTED)
+        );
+    }
 
     let agent = ureq::Agent::new();
     let response = agent
@@ -284,11 +334,26 @@ fn download_release_binary(
         .call()
         .map_err(|e| format!("Download failed: {}", e))?;
 
+    let total_size = response
+        .header("content-length")
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(0);
+
+    let pb = ProgressBar::new(total_size);
+    pb.set_style(
+        ProgressStyle::with_template(
+            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})",
+        )
+        .unwrap()
+        .progress_chars("#>-"),
+    );
+
+    let mut reader = pb.wrap_read(response.into_reader());
     let mut bytes = Vec::new();
-    response
-        .into_reader()
+    reader
         .read_to_end(&mut bytes)
         .map_err(|e| format!("Failed to read download: {}", e))?;
+    pb.finish_with_message("Downloaded");
 
     fs::write(&binary_path, bytes)
         .map_err(|e| format!("Failed to write binary: {}", e))?;
@@ -314,7 +379,7 @@ fn compile_from_source(plugin_name: &str, install_dir: &PathBuf) -> Result<(), S
         fs::remove_dir_all(&temp_dir).ok();
     }
 
-    let clone_url = format!("{}/tree/main/{}", GITHUB_REPO_BASE, plugin_name);
+    let clone_url = format!("{}.git", GITHUB_REPO_BASE);
 
     let status = std::process::Command::new("git")
         .args(&["clone", "--depth", "1", &clone_url, &temp_dir.to_string_lossy()])
@@ -328,7 +393,7 @@ fn compile_from_source(plugin_name: &str, install_dir: &PathBuf) -> Result<(), S
     }
 
     let build_status = std::process::Command::new("cargo")
-        .args(&["build", "--release"])
+        .args(&["build", "--release", "-p", plugin_name])
         .current_dir(&temp_dir)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -398,11 +463,29 @@ fn read_manifest(dir: &PathBuf) -> Result<PluginInfo, String> {
     Ok(manifest.plugin)
 }
 
-fn get_binary_name_for_platform(plugin_name: &str) -> String {
-    if cfg!(target_os = "windows") {
-        format!("{}.exe", plugin_name)
+fn get_asset_name_for_platform(plugin_name: &str) -> String {
+    let arch = std::env::consts::ARCH;
+    let os = std::env::consts::OS;
+
+    let platform = match (arch, os) {
+        ("x86_64", "linux") => "x86_64-unknown-linux-gnu",
+        ("aarch64", "linux") => "aarch64-unknown-linux-gnu",
+        ("x86_64", "macos") => "x86_64-apple-darwin",
+        ("aarch64", "macos") => "aarch64-apple-darwin",
+        ("x86_64", "windows") => "x86_64-pc-windows-msvc",
+        _ => {
+            if os == "windows" {
+                "x86_64-pc-windows-msvc"
+            } else {
+                "x86_64-unknown-linux-gnu"
+            }
+        }
+    };
+
+    if os == "windows" {
+        format!("{}-{}.exe", plugin_name, platform)
     } else {
-        plugin_name.to_string()
+        format!("{}-{}", plugin_name, platform)
     }
 }
 

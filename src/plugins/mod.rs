@@ -2,6 +2,7 @@ pub mod registry;
 pub mod discovery;
 pub mod install;
 pub mod execute;
+pub mod search;
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

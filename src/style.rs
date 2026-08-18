@@ -14,19 +14,39 @@ impl Theme {
     pub const VALUE: owo_colors::Style = owo_colors::Style::new().bright_white();
 }
 
+fn should_color() -> bool {
+    std::env::var("NO_COLOR").map_or(true, |v| v != "1" && !v.is_empty())
+}
+
+fn apply(text: &str, style: owo_colors::Style) -> String {
+    if should_color() {
+        text.style(style).to_string()
+    } else {
+        text.to_string()
+    }
+}
+
 pub struct Spinner {
     spinner: indicatif::ProgressBar,
 }
 
 impl Spinner {
     pub fn new(msg: &str) -> Self {
-        let sp = indicatif::ProgressBar::new_spinner()
-            .with_message(msg.to_string())
-            .with_style(
-                indicatif::ProgressStyle::with_template("{spinner:.cyan} {msg}")
-                    .unwrap()
-                    .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
-            );
+        let sp = if should_color() {
+            indicatif::ProgressBar::new_spinner()
+                .with_message(msg.to_string())
+                .with_style(
+                    indicatif::ProgressStyle::with_template("{spinner:.cyan} {msg}")
+                        .unwrap()
+                        .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
+                )
+        } else {
+            indicatif::ProgressBar::new_spinner()
+                .with_message(msg.to_string())
+                .with_style(
+                    indicatif::ProgressStyle::with_template("{spinner} {msg}").unwrap(),
+                )
+        };
         sp.enable_steady_tick(std::time::Duration::from_millis(80));
         Self { spinner: sp }
     }
@@ -37,7 +57,7 @@ impl Spinner {
 
     pub fn fail(&self, msg: &str) {
         self.spinner.finish_with_message(
-            format!("{} {}", "✗".style(Theme::ERROR), msg.style(Theme::ERROR))
+            format!("{} {}", apply("✗", Theme::ERROR), apply(msg, Theme::ERROR))
         );
     }
 }
@@ -45,52 +65,52 @@ impl Spinner {
 pub fn proto_banner() -> String {
     format!(
         "{}\n{}\n{}\n{}\n{}\n{}\n{}",
-        "    ⣀⡀".cyan(),
-        "⢠⣤⡀⣾⣿⣿⠀⣤⣤⡄".cyan(),
-        "⢿⣿⡇⠘⠛⠁⢸⣿⣿⠃".cyan(),
-        "⠈⣉⣤⣾⣿⣿⡆⠉⣴⣶⣶".cyan(),
-        "⣾⣿⣿⣿⣿⣿⣿⡀⠻⠟⠃".cyan(),
-        "⠙⠛⠻⢿⣿⣿⣿⡇".cyan(),
-        "    ⠈⠙⠋⠁".cyan(),
+        apply("    ⣀⡀", Theme::ACCENT),
+        apply("⢠⣤⡀⣾⣿⣿⠀⣤⣤⡄", Theme::ACCENT),
+        apply("⢿⣿⡇⠘⠛⠁⢸⣿⣿⠃", Theme::ACCENT),
+        apply("⠈⣉⣤⣾⣿⣿⡆⠉⣴⣶⣶", Theme::ACCENT),
+        apply("⣾⣿⣿⣿⣿⣿⣿⡀⠻⠟⠃", Theme::ACCENT),
+        apply("⠙⠛⠻⢿⣿⣿⣿⡇", Theme::ACCENT),
+        apply("    ⠈⠙⠋⠁", Theme::ACCENT),
     )
 }
 
 pub fn divider() -> String {
-    "─".repeat(40).dimmed().to_string()
+    apply(&"─".repeat(40), Theme::MUTED)
 }
 
 pub fn label_value(label: &str, value: &str) -> String {
     format!(
         "{} {}",
-        format!("{:>14}:", label).style(Theme::LABEL),
-        value.style(Theme::VALUE)
+        apply(&format!("{:>14}:", label), Theme::LABEL),
+        apply(value, Theme::VALUE)
     )
 }
 
 pub fn header(text: &str) -> String {
-    format!("{} {}", "◆".style(Theme::ACCENT), text.style(Theme::HEADER))
+    format!("{} {}", apply("◆", Theme::ACCENT), apply(text, Theme::HEADER))
 }
 
 pub fn success(msg: &str) -> String {
-    format!("{} {}", "✔".style(Theme::SUCCESS), msg)
+    format!("{} {}", apply("✔", Theme::SUCCESS), msg)
 }
 
 pub fn warn(msg: &str) -> String {
-    format!("{} {}", "⚠".style(Theme::WARN), msg)
+    format!("{} {}", apply("⚠", Theme::WARN), msg)
 }
 
 pub fn error(msg: &str) -> String {
-    format!("{} {}", "✗".style(Theme::ERROR), msg)
+    format!("{} {}", apply("✗", Theme::ERROR), msg)
 }
 
 pub fn muted(msg: &str) -> String {
-    format!("{}", msg.style(Theme::MUTED))
+    apply(msg, Theme::MUTED)
 }
 
 pub fn section(title: &str) -> String {
     format!(
         "\n{}\n{}\n",
-        title.style(Theme::HEADER).bold().to_string(),
-        "─".repeat(title.len()).dimmed().to_string()
+        apply(title, Theme::HEADER),
+        apply(&"─".repeat(title.len()), Theme::MUTED),
     )
 }

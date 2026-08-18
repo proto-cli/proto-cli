@@ -22,6 +22,15 @@ pub struct Cli {
 
     #[arg(short = 'V', long = "version", action = clap::ArgAction::SetTrue, global = false)]
     pub version_flag: bool,
+
+    #[arg(long, global = true, help = "Disable colored output")]
+    pub no_color: bool,
+
+    #[arg(short = 'q', long = "quiet", global = true, help = "Suppress non-essential output")]
+    pub quiet: bool,
+
+    #[arg(long, global = true, help = "Output as JSON")]
+    pub json: bool,
 }
 
 #[derive(Subcommand, Debug, Clone)]
@@ -60,6 +69,14 @@ pub enum Commands {
         #[command(subcommand)]
         action: commands::plugins::PluginsAction,
     },
+    #[command(about = "Generate shell completion scripts")]
+    Completions {
+        #[arg(value_name = "SHELL", help = "Shell to generate for (bash, zsh, fish)")]
+        shell: String,
+
+        #[arg(long, help = "Install completions to proto config dir")]
+        install: bool,
+    },
     #[command(external_subcommand)]
     External(Vec<String>),
 }
@@ -87,6 +104,13 @@ pub fn run(cli: Cli) {
         Some(Commands::Alias { action }) => commands::alias::run(&action),
         Some(Commands::Manage { action }) => commands::manage::run(&action),
         Some(Commands::Plugins { action }) => commands::plugins::run(&action),
+        Some(Commands::Completions { shell, install }) => {
+            if install {
+                crate::completions::install_completions();
+            } else {
+                crate::completions::generate(&shell);
+            }
+        }
         Some(Commands::External(args)) => {
             if let Some(command) = args.first() {
                 let (scope, name) = plugins::parse_plugin_ref(command);
