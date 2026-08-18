@@ -1,12 +1,10 @@
 use super::{registry_file, InstalledPlugin};
 use std::fs;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct PluginRegistry {
     pub plugins: Vec<InstalledPlugin>,
 }
-
 
 pub fn load_registry() -> PluginRegistry {
     let path = registry_file();
