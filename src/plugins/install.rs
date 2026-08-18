@@ -1,12 +1,12 @@
-use super::{PluginInfo, PluginManifest, InstalledPlugin, plugin_dir};
 use super::registry;
+use super::{plugin_dir, InstalledPlugin, PluginInfo, PluginManifest};
 use crate::globals;
 use crate::style;
 use indicatif::{ProgressBar, ProgressStyle};
 use owo_colors::OwoColorize;
 use std::fs;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::Path;
 
 const GITHUB_API_BASE: &str = "https://api.github.com/repos/proto-cli/plugins";
 const GITHUB_REPO_BASE: &str = "https://github.com/proto-cli/plugins";
@@ -149,8 +149,8 @@ pub fn update_plugin(reference: Option<&str>) -> Result<(), String> {
 }
 
 fn update_single_plugin(name: &str) -> Result<(), String> {
-    let plugin = registry::get_plugin(name)
-        .ok_or_else(|| format!("Plugin {} is not installed", name))?;
+    let plugin =
+        registry::get_plugin(name).ok_or_else(|| format!("Plugin {} is not installed", name))?;
 
     println!(
         "{}",
@@ -171,8 +171,11 @@ fn update_single_plugin(name: &str) -> Result<(), String> {
 
         println!(
             "{}",
-            format!("Updating {} from v{} to v{}", name, plugin.version, latest_version)
-                .style(style::Theme::MUTED)
+            format!(
+                "Updating {} from v{} to v{}",
+                name, plugin.version, latest_version
+            )
+            .style(style::Theme::MUTED)
         );
 
         let installed_dir = plugin_dir(&plugin.scope, name);
@@ -210,10 +213,7 @@ fn update_all_plugins() -> Result<(), String> {
     let installed: Vec<_> = plugins.into_iter().filter(|p| p.installed).collect();
 
     if installed.is_empty() {
-        println!(
-            "{}",
-            "No plugins installed.".style(style::Theme::MUTED)
-        );
+        println!("{}", "No plugins installed.".style(style::Theme::MUTED));
         return Ok(());
     }
 
@@ -257,10 +257,7 @@ fn fetch_latest_release(plugin_name: &str) -> Result<Option<GitHubRelease>, Stri
     let agent = ureq::Agent::new();
 
     for url in &urls {
-        let response = agent
-            .get(url)
-            .set("User-Agent", "proto-cli")
-            .call();
+        let response = agent.get(url).set("User-Agent", "proto-cli").call();
 
         match response {
             Ok(resp) => {
@@ -306,7 +303,7 @@ fn fetch_latest_release(plugin_name: &str) -> Result<Option<GitHubRelease>, Stri
 fn download_release_binary(
     plugin_name: &str,
     release: &GitHubRelease,
-    install_dir: &PathBuf,
+    install_dir: &Path,
 ) -> Result<(), String> {
     let binary_name = get_asset_name_for_platform(plugin_name);
     let asset = release
@@ -355,8 +352,7 @@ fn download_release_binary(
         .map_err(|e| format!("Failed to read download: {}", e))?;
     pb.finish_with_message("Downloaded");
 
-    fs::write(&binary_path, bytes)
-        .map_err(|e| format!("Failed to write binary: {}", e))?;
+    fs::write(&binary_path, bytes).map_err(|e| format!("Failed to write binary: {}", e))?;
 
     #[cfg(unix)]
     {
@@ -372,7 +368,7 @@ fn download_release_binary(
     Ok(())
 }
 
-fn compile_from_source(plugin_name: &str, install_dir: &PathBuf) -> Result<(), String> {
+fn compile_from_source(plugin_name: &str, install_dir: &Path) -> Result<(), String> {
     let temp_dir = std::env::temp_dir().join(format!("proto-plugin-{}", plugin_name));
 
     if temp_dir.exists() {
@@ -382,7 +378,13 @@ fn compile_from_source(plugin_name: &str, install_dir: &PathBuf) -> Result<(), S
     let clone_url = format!("{}.git", GITHUB_REPO_BASE);
 
     let status = std::process::Command::new("git")
-        .args(&["clone", "--depth", "1", &clone_url, &temp_dir.to_string_lossy()])
+        .args([
+            "clone",
+            "--depth",
+            "1",
+            &clone_url,
+            &temp_dir.to_string_lossy(),
+        ])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status()
@@ -393,7 +395,7 @@ fn compile_from_source(plugin_name: &str, install_dir: &PathBuf) -> Result<(), S
     }
 
     let build_status = std::process::Command::new("cargo")
-        .args(&["build", "--release", "-p", plugin_name])
+        .args(["build", "--release", "-p", plugin_name])
         .current_dir(&temp_dir)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -429,7 +431,7 @@ fn compile_from_source(plugin_name: &str, install_dir: &PathBuf) -> Result<(), S
     Ok(())
 }
 
-fn create_manifest(name: &str, scope: &str, dir: &PathBuf) -> Result<(), String> {
+fn create_manifest(name: &str, scope: &str, dir: &Path) -> Result<(), String> {
     let manifest = PluginManifest {
         plugin: PluginInfo {
             name: name.to_string(),
@@ -455,11 +457,11 @@ fn create_manifest(name: &str, scope: &str, dir: &PathBuf) -> Result<(), String>
     Ok(())
 }
 
-fn read_manifest(dir: &PathBuf) -> Result<PluginInfo, String> {
+fn read_manifest(dir: &Path) -> Result<PluginInfo, String> {
     let content = fs::read_to_string(dir.join("plugin.toml"))
         .map_err(|e| format!("Failed to read plugin manifest: {}", e))?;
-    let manifest: PluginManifest = toml::from_str(&content)
-        .map_err(|e| format!("Failed to parse plugin manifest: {}", e))?;
+    let manifest: PluginManifest =
+        toml::from_str(&content).map_err(|e| format!("Failed to parse plugin manifest: {}", e))?;
     Ok(manifest.plugin)
 }
 

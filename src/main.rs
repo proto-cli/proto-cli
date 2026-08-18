@@ -1,11 +1,11 @@
-mod style;
-mod utils;
-mod commands;
-mod plugins;
 mod cli;
-mod update;
+mod commands;
 mod completions;
 mod globals;
+mod plugins;
+mod style;
+mod update;
+mod utils;
 
 use clap::Parser;
 
@@ -22,7 +22,7 @@ fn main() {
     }
 
     if !globals::is_quiet() {
-        std::thread::spawn(|| update::check_for_update());
+        std::thread::spawn(update::check_for_update);
     }
 
     let cli = cli::Cli::parse();

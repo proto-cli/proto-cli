@@ -30,7 +30,10 @@ pub fn search_and_install() {
     }
 
     let installed = plugins::discovery::scan_installed_plugins();
-    let installed_names: Vec<String> = installed.iter().map(|(info, _)| info.name.clone()).collect();
+    let installed_names: Vec<String> = installed
+        .iter()
+        .map(|(info, _)| info.name.clone())
+        .collect();
 
     let mut items: Vec<String> = plugin_dirs
         .iter()
@@ -59,10 +62,7 @@ pub fn search_and_install() {
             }
             let selected = &plugin_dirs[idx - 1];
             if let Err(e) = plugins::install::install_plugin(selected) {
-                eprintln!(
-                    "{}",
-                    format!("Error: {}", e).style(style::Theme::ERROR)
-                );
+                eprintln!("{}", format!("Error: {}", e).style(style::Theme::ERROR));
             }
         }
         Ok(None) => {}
@@ -101,7 +101,10 @@ pub fn list_available() {
     }
 
     let installed = plugins::discovery::scan_installed_plugins();
-    let installed_names: Vec<String> = installed.iter().map(|(info, _)| info.name.clone()).collect();
+    let installed_names: Vec<String> = installed
+        .iter()
+        .map(|(info, _)| info.name.clone())
+        .collect();
 
     println!(
         "\n{}",
@@ -119,7 +122,7 @@ pub fn list_available() {
 
         println!(
             "  {} {}{}",
-            format!("@proto/").style(style::Theme::ACCENT),
+            "@proto/".to_string().style(style::Theme::ACCENT),
             name.style(style::Theme::HEADER).bold(),
             marker
         );

@@ -43,9 +43,7 @@ impl Spinner {
         } else {
             indicatif::ProgressBar::new_spinner()
                 .with_message(msg.to_string())
-                .with_style(
-                    indicatif::ProgressStyle::with_template("{spinner} {msg}").unwrap(),
-                )
+                .with_style(indicatif::ProgressStyle::with_template("{spinner} {msg}").unwrap())
         };
         sp.enable_steady_tick(std::time::Duration::from_millis(80));
         Self { spinner: sp }
@@ -56,9 +54,11 @@ impl Spinner {
     }
 
     pub fn fail(&self, msg: &str) {
-        self.spinner.finish_with_message(
-            format!("{} {}", apply("✗", Theme::ERROR), apply(msg, Theme::ERROR))
-        );
+        self.spinner.finish_with_message(format!(
+            "{} {}",
+            apply("✗", Theme::ERROR),
+            apply(msg, Theme::ERROR)
+        ));
     }
 }
 
@@ -88,7 +88,11 @@ pub fn label_value(label: &str, value: &str) -> String {
 }
 
 pub fn header(text: &str) -> String {
-    format!("{} {}", apply("◆", Theme::ACCENT), apply(text, Theme::HEADER))
+    format!(
+        "{} {}",
+        apply("◆", Theme::ACCENT),
+        apply(text, Theme::HEADER)
+    )
 }
 
 pub fn success(msg: &str) -> String {

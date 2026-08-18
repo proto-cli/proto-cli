@@ -1,18 +1,12 @@
-use super::{InstalledPlugin, registry_file};
+use super::{registry_file, InstalledPlugin};
 use std::fs;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Default)]
 pub struct PluginRegistry {
     pub plugins: Vec<InstalledPlugin>,
 }
 
-impl Default for PluginRegistry {
-    fn default() -> Self {
-        Self {
-            plugins: Vec::new(),
-        }
-    }
-}
 
 pub fn load_registry() -> PluginRegistry {
     let path = registry_file();
@@ -31,8 +25,7 @@ pub fn save_registry(registry: &PluginRegistry) -> Result<(), String> {
     fs::create_dir_all(&dir).map_err(|e| format!("Failed to create config dir: {}", e))?;
     let toml_str = toml::to_string_pretty(registry)
         .map_err(|e| format!("Failed to serialize registry: {}", e))?;
-    fs::write(registry_file(), toml_str)
-        .map_err(|e| format!("Failed to write registry: {}", e))?;
+    fs::write(registry_file(), toml_str).map_err(|e| format!("Failed to write registry: {}", e))?;
     Ok(())
 }
 

@@ -48,8 +48,10 @@ pub fn load_config() -> ProtoConfig {
 pub fn save_config(config: &ProtoConfig) -> Result<(), String> {
     let dir = config_dir();
     std::fs::create_dir_all(&dir).map_err(|e| format!("Failed to create config dir: {}", e))?;
-    let toml_str = toml::to_string_pretty(config).map_err(|e| format!("Failed to serialize config: {}", e))?;
-    std::fs::write(config_file(), toml_str).map_err(|e| format!("Failed to write config: {}", e))?;
+    let toml_str =
+        toml::to_string_pretty(config).map_err(|e| format!("Failed to serialize config: {}", e))?;
+    std::fs::write(config_file(), toml_str)
+        .map_err(|e| format!("Failed to write config: {}", e))?;
     Ok(())
 }
 
@@ -117,7 +119,10 @@ pub fn default_package_manager() -> PackageManager {
             return pm.clone();
         }
     }
-    managers.into_iter().next().unwrap_or(PackageManager::Unknown)
+    managers
+        .into_iter()
+        .next()
+        .unwrap_or(PackageManager::Unknown)
 }
 pub fn which(binary: &str) -> bool {
     Command::new("which")
@@ -181,10 +186,18 @@ pub fn get_uptime() -> String {
                 let minutes = (total_secs % 3600) / 60;
 
                 let mut parts = Vec::new();
-                if days > 0 { parts.push(format!("{}d", days)); }
-                if hours > 0 { parts.push(format!("{}h", hours)); }
-                if minutes > 0 { parts.push(format!("{}m", minutes)); }
-                if parts.is_empty() { parts.push("just now".to_string()); }
+                if days > 0 {
+                    parts.push(format!("{}d", days));
+                }
+                if hours > 0 {
+                    parts.push(format!("{}h", hours));
+                }
+                if minutes > 0 {
+                    parts.push(format!("{}m", minutes));
+                }
+                if parts.is_empty() {
+                    parts.push("just now".to_string());
+                }
                 return parts.join(" ");
             }
         }
@@ -196,7 +209,7 @@ pub fn get_shell() -> String {
     std::env::var("SHELL")
         .unwrap_or_else(|_| "Unknown".to_string())
         .split('/')
-        .last()
+        .next_back()
         .unwrap_or("Unknown")
         .to_string()
 }
@@ -219,8 +232,7 @@ pub fn get_de_wm() -> String {
 }
 
 pub fn get_terminal() -> String {
-    std::env::var("TERM")
-        .unwrap_or_else(|_| "Unknown".to_string())
+    std::env::var("TERM").unwrap_or_else(|_| "Unknown".to_string())
 }
 
 pub fn get_kernel() -> String {

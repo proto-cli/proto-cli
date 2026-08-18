@@ -44,10 +44,7 @@ fn update() {
             spin.done("Git pull complete");
             let stdout = String::from_utf8_lossy(&o.stdout);
             if !stdout.contains("Already up to date") {
-                println!(
-                    "  {} New commits pulled.",
-                    style::muted("")
-                );
+                println!("  {} New commits pulled.", style::muted(""));
             }
         }
         Ok(o) => {
@@ -95,10 +92,7 @@ fn update() {
         return;
     }
 
-    println!(
-        "  {} Update complete.",
-        style::success("")
-    );
+    println!("  {} Update complete.", style::success(""));
 }
 
 fn uninstall(purge: bool) {
@@ -130,11 +124,7 @@ fn uninstall(purge: bool) {
 
     if purge {
         let repo = repo_dir();
-        println!(
-            "\n  {} Purging repository at {}",
-            style::warn(""),
-            repo
-        );
+        println!("\n  {} Purging repository at {}", style::warn(""), repo);
         let confirm = dialoguer::Confirm::with_theme(&dialoguer::theme::ColorfulTheme::default())
             .with_prompt("Remove the entire proto repository?")
             .default(false)
@@ -175,11 +165,7 @@ fn reset() {
 
     for dir in dirs.into_iter().flatten() {
         if dir.exists() {
-            println!(
-                "  {} Removing {}...",
-                style::muted(""),
-                dir.display()
-            );
+            println!("  {} Removing {}...", style::muted(""), dir.display());
             let _ = std::fs::remove_dir_all(&dir);
         }
     }

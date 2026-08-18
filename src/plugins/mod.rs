@@ -1,7 +1,7 @@
-pub mod registry;
 pub mod discovery;
-pub mod install;
 pub mod execute;
+pub mod install;
+pub mod registry;
 pub mod search;
 
 use serde::{Deserialize, Serialize};
@@ -46,8 +46,7 @@ pub fn plugin_dir(scope: &str, name: &str) -> PathBuf {
 }
 
 pub fn parse_plugin_ref(reference: &str) -> (String, String) {
-    if reference.starts_with('@') {
-        let without_at = &reference[1..];
+    if let Some(without_at) = reference.strip_prefix('@') {
         if let Some(slash_pos) = without_at.find('/') {
             let scope = without_at[..slash_pos].to_string();
             let name = without_at[slash_pos + 1..].to_string();

@@ -228,7 +228,9 @@ pub fn install_completions() {
 
     println!(
         "{}",
-        "Shell completions generated:".style(style::Theme::HEADER).bold()
+        "Shell completions generated:"
+            .style(style::Theme::HEADER)
+            .bold()
     );
     println!();
     println!(
@@ -266,8 +268,11 @@ pub fn install_completions() {
     );
     println!(
         "    {}",
-        format!("cp {} ~/.config/fish/completions/proto.fish", fish_path.display())
-            .style(style::Theme::ACCENT)
+        format!(
+            "cp {} ~/.config/fish/completions/proto.fish",
+            fish_path.display()
+        )
+        .style(style::Theme::ACCENT)
     );
 
     let mut config = crate::utils::load_config();

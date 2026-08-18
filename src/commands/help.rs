@@ -174,7 +174,9 @@ fn print_command_help(command: &str) {
             println!("  Install, update, and manage proto plugins.\n");
             println!("{}", "USAGE:".style(style::Theme::HEADER));
             println!("  proto plugins list                    List all installed plugins");
-            println!("  proto plugins search                  Search & install plugins interactively");
+            println!(
+                "  proto plugins search                  Search & install plugins interactively"
+            );
             println!("  proto plugins list-available          List all available plugins");
             println!("  proto plugins add @scope/name         Install a plugin");
             println!("  proto plugins remove @scope/name      Uninstall a plugin");
@@ -202,7 +204,9 @@ fn print_command_help(command: &str) {
             let discovered = crate::plugins::discovery::scan_installed_plugins();
             for (info, binary) in &discovered {
                 if info.commands.keys().any(|c| c == other) {
-                    if let Err(e) = crate::plugins::execute::execute_plugin(binary, &["--help".to_string()]) {
+                    if let Err(e) =
+                        crate::plugins::execute::execute_plugin(binary, &["--help".to_string()])
+                    {
                         eprintln!("Plugin error: {}", e);
                     }
                     return;
@@ -231,9 +235,5 @@ fn print_cmd(name: &str, args: &str, desc: &str) {
             args.style(style::Theme::BOLD)
         )
     };
-    println!(
-        "{}{}",
-        format!("{:40}", name_part),
-        desc.style(style::Theme::MUTED)
-    );
+    println!("{:<40}{}", name_part, desc.style(style::Theme::MUTED));
 }

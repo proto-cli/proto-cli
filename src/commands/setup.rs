@@ -82,7 +82,7 @@ pub fn run() {
             style::success(""),
             "Configuration saved!".style(style::Theme::BOLD)
         );
-        println!("{} {}", style::divider(), "");
+        println!("{} ", style::divider());
         println!(
             "{} {}",
             "To get started, try:".style(style::Theme::MUTED),
@@ -401,7 +401,8 @@ _proto() {
 }
 
 _proto "$@"
-"#.to_string()
+"#
+    .to_string()
 }
 
 fn generate_fish_completion() -> String {

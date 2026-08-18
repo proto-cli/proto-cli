@@ -1,6 +1,6 @@
-use super::{PluginInfo, PluginManifest, plugin_dir, plugins_dir};
+use super::{plugin_dir, plugins_dir, PluginInfo, PluginManifest};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub fn scan_installed_plugins() -> Vec<(PluginInfo, PathBuf)> {
     let plugins_root = plugins_dir();
@@ -55,7 +55,7 @@ pub fn find_plugin_for_command(command: &str) -> Option<(PluginInfo, PathBuf)> {
     None
 }
 
-fn resolve_binary_path(plugin_dir: &PathBuf, info: &PluginInfo) -> PathBuf {
+fn resolve_binary_path(plugin_dir: &Path, info: &PluginInfo) -> PathBuf {
     if let Some((_, rel_path)) = info.commands.iter().next() {
         let binary_name = PathBuf::from(rel_path)
             .file_name()
@@ -72,7 +72,9 @@ pub fn get_plugin_info(scope: &str, name: &str) -> Option<PluginInfo> {
     let dir = plugin_dir(scope, name);
     let manifest_path = dir.join("plugin.toml");
     if let Ok(content) = fs::read_to_string(&manifest_path) {
-        toml::from_str::<PluginManifest>(&content).ok().map(|m| m.plugin)
+        toml::from_str::<PluginManifest>(&content)
+            .ok()
+            .map(|m| m.plugin)
     } else {
         None
     }

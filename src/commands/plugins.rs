@@ -67,10 +67,7 @@ fn list_plugins() {
     println!();
 
     if discovered.is_empty() {
-        println!(
-            "  {}",
-            "No plugins installed.".style(style::Theme::MUTED)
-        );
+        println!("  {}", "No plugins installed.".style(style::Theme::MUTED));
         println!(
             "  {}",
             "Run 'proto plugins add <name>' to install a plugin.".style(style::Theme::MUTED)
@@ -89,18 +86,12 @@ fn list_plugins() {
                 "Commands:".style(style::Theme::MUTED),
                 commands_str.join(", ").style(style::Theme::SUCCESS)
             );
-            println!(
-                "    {}",
-                info.description.style(style::Theme::MUTED)
-            );
+            println!("    {}", info.description.style(style::Theme::MUTED));
         }
     }
 
     println!();
-    println!(
-        "{}",
-        "Get more plugins:".style(style::Theme::HEADER).bold()
-    );
+    println!("{}", "Get more plugins:".style(style::Theme::HEADER).bold());
     println!(
         "  {}",
         "https://github.com/proto-cli/plugins".style(style::Theme::MUTED)

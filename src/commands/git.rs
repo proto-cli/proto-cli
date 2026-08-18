@@ -22,8 +22,8 @@ pub enum GitAction {
 }
 
 pub fn run(action: &GitAction) {
-    use crate::utils;
     use crate::style;
+    use crate::utils;
 
     if !utils::which("git") {
         eprintln!("{}", style::error("Git is not installed."));
@@ -92,8 +92,8 @@ fn git_log(count: usize) -> Result<(), String> {
 }
 
 fn git_stats() -> Result<(), String> {
-    use owo_colors::OwoColorize;
     use crate::style;
+    use owo_colors::OwoColorize;
 
     println!("{}", "Repository Stats".style(style::Theme::HEADER));
     println!("{}", style::divider());
@@ -110,14 +110,18 @@ fn git_stats() -> Result<(), String> {
         println!("{}", style::label_value("Commits", &commits));
     }
 
-    if let Ok(contributors) = crate::utils::run_command_output("git", &["shortlog", "-sn", "HEAD"]) {
+    if let Ok(contributors) = crate::utils::run_command_output("git", &["shortlog", "-sn", "HEAD"])
+    {
         let count = contributors.lines().count();
         println!("{}", style::label_value("Contributors", &count.to_string()));
     }
 
     if let Ok(files) = crate::utils::run_command_output("git", &["ls-files"]) {
         let count = files.lines().count();
-        println!("{}", style::label_value("Tracked files", &count.to_string()));
+        println!(
+            "{}",
+            style::label_value("Tracked files", &count.to_string())
+        );
     }
 
     if let Ok(modified) = crate::utils::run_command_output("git", &["status", "--porcelain"]) {
@@ -159,22 +163,26 @@ fn git_undo() -> Result<(), String> {
         .map_err(|e| format!("git reset failed: {}", e))?;
     spinner.done("Undid last commit");
 
-    println!("{} Changes are still staged. Edit and re-commit.", style::success("Last commit undone!"));
+    println!(
+        "{} Changes are still staged. Edit and re-commit.",
+        style::success("Last commit undone!")
+    );
     Ok(())
 }
 
 fn git_branch() -> Result<(), String> {
-    use owo_colors::OwoColorize;
     use crate::style;
+    use owo_colors::OwoColorize;
 
     println!("{}", "Branches".style(style::Theme::HEADER));
     println!("{}", style::divider());
 
-    let current = crate::utils::run_command_output("git", &["branch", "--show-current"])
-        .unwrap_or_default();
+    let current =
+        crate::utils::run_command_output("git", &["branch", "--show-current"]).unwrap_or_default();
 
-    let output = crate::utils::run_command_output("git", &["branch", "-v", "--sort=-committerdate"])
-        .map_err(|e| format!("Failed to list branches: {}", e))?;
+    let output =
+        crate::utils::run_command_output("git", &["branch", "-v", "--sort=-committerdate"])
+            .map_err(|e| format!("Failed to list branches: {}", e))?;
 
     for line in output.lines() {
         let trimmed = line.trim();
@@ -182,7 +190,11 @@ fn git_branch() -> Result<(), String> {
             continue;
         }
         if trimmed.starts_with("* ") || trimmed.starts_with(&current) {
-            println!("{} {}", "▶".style(style::Theme::ACCENT), trimmed.style(style::Theme::ACCENT));
+            println!(
+                "{} {}",
+                "▶".style(style::Theme::ACCENT),
+                trimmed.style(style::Theme::ACCENT)
+            );
         } else {
             println!("  {}", trimmed.style(style::Theme::MUTED));
         }

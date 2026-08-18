@@ -27,13 +27,16 @@ pub enum PkgAction {
 }
 
 pub fn run(action: &PkgAction) {
-    use crate::utils::{self, PackageManager};
     use crate::style;
+    use crate::utils::{self, PackageManager};
 
     let pm = utils::default_package_manager();
     if pm == PackageManager::Unknown {
         eprintln!("{}", style::error("No supported package manager detected."));
-        eprintln!("{} Supported: pacman, yay, paru, apt, dnf, zypper, apk", style::warn(""));
+        eprintln!(
+            "{} Supported: pacman, yay, paru, apt, dnf, zypper, apk",
+            style::warn("")
+        );
         return;
     }
 
@@ -105,7 +108,10 @@ fn list(pm: &crate::utils::PackageManager) -> Result<(), String> {
     Ok(())
 }
 
-fn build_install_args<'a>(pm: &crate::utils::PackageManager, packages: &'a [String]) -> Vec<&'a str> {
+fn build_install_args<'a>(
+    pm: &crate::utils::PackageManager,
+    packages: &'a [String],
+) -> Vec<&'a str> {
     match pm {
         crate::utils::PackageManager::Pacman => {
             let mut v = vec!["-S", "--noconfirm"];
@@ -154,7 +160,10 @@ fn build_search_args<'a>(pm: &crate::utils::PackageManager, query: &'a str) -> V
     }
 }
 
-fn build_remove_args<'a>(pm: &crate::utils::PackageManager, packages: &'a [String]) -> Vec<&'a str> {
+fn build_remove_args<'a>(
+    pm: &crate::utils::PackageManager,
+    packages: &'a [String],
+) -> Vec<&'a str> {
     match pm {
         crate::utils::PackageManager::Pacman => {
             let mut v = vec!["-R", "--noconfirm"];
@@ -190,7 +199,10 @@ fn build_remove_args<'a>(pm: &crate::utils::PackageManager, packages: &'a [Strin
     }
 }
 
-fn build_update_args<'a>(pm: &crate::utils::PackageManager, package: Option<&'a str>) -> (&'a str, Vec<&'a str>) {
+fn build_update_args<'a>(
+    pm: &crate::utils::PackageManager,
+    package: Option<&'a str>,
+) -> (&'a str, Vec<&'a str>) {
     match pm {
         crate::utils::PackageManager::Pacman => {
             if let Some(pkg) = package {
@@ -250,7 +262,9 @@ fn build_list_args<'a>(pm: &crate::utils::PackageManager) -> (&'a str, Vec<&'a s
         crate::utils::PackageManager::Pacman => ("pacman", vec!["-Q"]),
         crate::utils::PackageManager::Yay => ("yay", vec!["-Q"]),
         crate::utils::PackageManager::Paru => ("paru", vec!["-Q"]),
-        crate::utils::PackageManager::Apt => ("dpkg-query", vec!["-W", "-f", "${Package} ${Version}\n"]),
+        crate::utils::PackageManager::Apt => {
+            ("dpkg-query", vec!["-W", "-f", "${Package} ${Version}\n"])
+        }
         crate::utils::PackageManager::Dnf => ("rpm", vec!["-qa"]),
         crate::utils::PackageManager::Zypper => ("rpm", vec!["-qa"]),
         crate::utils::PackageManager::Apk => ("apk", vec!["info", "-v"]),

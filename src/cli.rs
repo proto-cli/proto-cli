@@ -26,7 +26,12 @@ pub struct Cli {
     #[arg(long, global = true, help = "Disable colored output")]
     pub no_color: bool,
 
-    #[arg(short = 'q', long = "quiet", global = true, help = "Suppress non-essential output")]
+    #[arg(
+        short = 'q',
+        long = "quiet",
+        global = true,
+        help = "Suppress non-essential output"
+    )]
     pub quiet: bool,
 
     #[arg(long, global = true, help = "Output as JSON")]
