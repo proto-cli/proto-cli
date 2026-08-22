@@ -87,9 +87,29 @@ fn update() {
         current.display()
     );
 
-    if let Err(e) = std::fs::copy(&new_binary, &current) {
-        eprintln!("  {} Failed to install: {}", style::error(""), e);
-        return;
+    // Writing to a running executable fails with ETXTBSY ("Text file busy"),
+    // so stage the new binary next to the target and atomically rename it
+    // into place instead.
+    let mut tmp_name = current
+        .file_name()
+        .map(|n| n.to_os_string())
+        .unwrap_or_default();
+    tmp_name.push(format!(".tmp-{}", std::process::id()));
+    let tmp = current.with_file_name(tmp_name);
+
+    if std::fs::copy(&new_binary, &tmp)
+        .and_then(|_| std::fs::rename(&tmp, &current))
+        .is_err()
+    {
+        let _ = std::fs::remove_file(&tmp);
+        // Fallback: unlink the busy binary first, then copy fresh.
+        match std::fs::remove_file(&current).and_then(|_| std::fs::copy(&new_binary, &current)) {
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("  {} Failed to install: {}", style::error(""), e);
+                return;
+            }
+        }
     }
 
     println!("  {} Update complete.", style::success(""));
