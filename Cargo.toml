@@ -1,10 +1,10 @@
 [package]
 name = "proto"
-version = "0.1.0"
+version = "0.3.0"
 edition = "2021"
 description = "Your friendly protogen CLI companion"
 license = "MIT"
-repository = "https://github.com/foxy/proto"
+repository = "https://github.com/proto-cli/proto-cli"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
