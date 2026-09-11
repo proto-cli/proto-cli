@@ -1,7 +1,6 @@
 use crate::style;
 use clap::Subcommand;
 use owo_colors::OwoColorize;
-use std::process::Command;
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum ManageAction {
@@ -28,68 +27,175 @@ fn repo_dir() -> &'static str {
     env!("CARGO_MANIFEST_DIR")
 }
 
+fn detect_target() -> String {
+    let arch = std::env::consts::ARCH;
+    let os = std::env::consts::OS;
+    let target = match (arch, os) {
+        ("x86_64", "linux") => "x86_64-unknown-linux-gnu",
+        ("aarch64", "linux") => "aarch64-unknown-linux-gnu",
+        ("x86_64", "macos") => "x86_64-apple-darwin",
+        ("aarch64", "macos") => "aarch64-apple-darwin",
+        ("x86_64", "windows") => "x86_64-pc-windows-msvc.exe",
+        ("aarch64", "windows") => "aarch64-pc-windows-msvc.exe",
+        _ => "",
+    };
+    if target.is_empty() {
+        eprintln!(
+            "  {} No prebuilt binary for {}-{}",
+            style::error(""),
+            os,
+            arch
+        );
+    }
+    target.to_string()
+}
+
+fn latest_tag() -> Result<String, String> {
+    let agent = ureq::Agent::new();
+    agent
+        .get("https://api.github.com/repos/proto-cli/proto-cli/releases/latest")
+        .set("User-Agent", "proto-cli")
+        .call()
+        .map_err(|e| format!("Could not reach GitHub releases: {}", e))
+        .and_then(|resp| {
+            let body: serde_json::Value = resp.into_json().map_err(|e| e.to_string())?;
+            body["tag_name"]
+                .as_str()
+                .map(|s| s.to_string())
+                .ok_or_else(|| "No tag_name in latest release".into())
+        })
+}
+
+fn download_to(
+    url: &str,
+    dest: &std::path::Path,
+) -> Result<(), String> {
+    let agent = ureq::Agent::new();
+    let response = agent
+        .get(url)
+        .set("User-Agent", "proto-cli")
+        .call()
+        .map_err(|e| format!("Download failed: {}", e))?;
+
+    let total_size = response
+        .header("content-length")
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(0);
+
+    let pb = indicatif::ProgressBar::new(total_size);
+    pb.set_style(
+        indicatif::ProgressStyle::with_template(
+            "  {spinner:.green} [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})",
+        )
+        .unwrap()
+        .progress_chars("#>-"),
+    );
+
+    let mut reader = pb.wrap_read(response.into_reader());
+    let mut bytes = Vec::new();
+    use std::io::Read;
+    reader
+        .read_to_end(&mut bytes)
+        .map_err(|e| format!("Download error: {}", e))?;
+    pb.finish_and_clear();
+
+    std::fs::write(dest, &bytes).map_err(|e| format!("Write error: {}", e))
+}
+
+fn sha256_hex(data: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(data);
+    let digest = hasher.finalize();
+    digest
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<String>()
+}
+
 fn update() {
     println!("{}", style::header("Proto Update"));
     println!("{}", style::divider());
 
-    let repo = repo_dir();
-    println!("  {}\n", style::muted(&format!("Repo: {}", repo)));
-
-    let spin = style::Spinner::new("git pull origin master...");
-    let pull = Command::new("git")
-        .args(["-C", repo, "pull", "origin", "master"])
-        .output();
-    match pull {
-        Ok(o) if o.status.success() => {
-            spin.done("Git pull complete");
-            let stdout = String::from_utf8_lossy(&o.stdout);
-            if !stdout.contains("Already up to date") {
-                println!("  {} New commits pulled.", style::muted(""));
-            }
-        }
-        Ok(o) => {
-            spin.fail("Git pull failed");
-            eprintln!("  {}", String::from_utf8_lossy(&o.stderr));
-            return;
-        }
-        Err(e) => {
-            spin.fail(&format!("Git pull error: {}", e));
-            return;
-        }
-    }
-
-    let spin = style::Spinner::new("cargo build --release...");
-    let build = Command::new("cargo")
-        .args(["build", "--release"])
-        .current_dir(repo)
-        .output();
-    match build {
-        Ok(o) if o.status.success() => {
-            spin.done("Build complete");
-        }
-        Ok(o) => {
-            spin.fail("Build failed");
-            eprintln!("  {}", String::from_utf8_lossy(&o.stderr));
-            return;
-        }
-        Err(e) => {
-            spin.fail(&format!("Build error: {}", e));
-            return;
-        }
-    }
-
     let current = std::env::current_exe().unwrap_or_default();
-    let new_binary = format!("{}/target/release/proto", repo);
-    println!(
-        "  {} Installing {} -> {}",
-        style::muted(""),
-        new_binary,
-        current.display()
+    let target = detect_target();
+    if target.is_empty() {
+        return;
+    }
+
+    let spin = style::Spinner::new("Checking for latest release...");
+    let tag = match latest_tag() {
+        Ok(t) => t,
+        Err(e) => {
+            spin.fail(&e);
+            return;
+        }
+    };
+    spin.done(&format!("Latest: {}", tag));
+
+    let exe_suffix = if cfg!(target_os = "windows") { ".exe" } else { "" };
+    let asset_name = format!("proto-{}{}", target.trim_end_matches(".exe"), exe_suffix);
+    let base = format!(
+        "https://github.com/proto-cli/proto-cli/releases/download/{}/{}",
+        tag, asset_name
     );
 
-    // Writing to a running executable fails with ETXTBSY ("Text file busy"),
-    // so stage the new binary next to the target and atomically rename it
-    // into place instead.
+    // Stage into a temp dir next to the current executable so the final
+    // swap can be an atomic rename (avoids ETXTBSY on the live binary).
+    let tmp_dir = std::env::temp_dir().join(format!("proto-update-{}", std::process::id()));
+    std::fs::create_dir_all(&tmp_dir).ok();
+    let tmp_bin = tmp_dir.join("proto");
+
+    println!("  {} Downloading {}", style::muted(""), &asset_name);
+    if let Err(e) = download_to(&base, &tmp_bin) {
+        eprintln!("  {} {}", style::error(""), e);
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+        return;
+    }
+
+    // Verify checksum when a published .sha256 exists.
+    let sha_url = format!("{}.sha256", base);
+    let sha_text = fetch_plain(&sha_url);
+    match sha_text {
+        Some(text) => {
+            let hex = text
+                .split_whitespace()
+                .next()
+                .map(|s| s.to_lowercase())
+                .unwrap_or_default();
+            if hex.is_empty() {
+                println!("  {} Could not parse checksum file", style::warn(""));
+            } else {
+                let actual = std::fs::read(&tmp_bin)
+                    .map(|b| sha256_hex(&b))
+                    .unwrap_or_default();
+                if actual == hex {
+                    println!("  {} Checksum verified", style::success(""));
+                } else {
+                    eprintln!("  {} Checksum mismatch:", style::error(""));
+                    eprintln!("    expected: {}", hex);
+                    eprintln!("    actual:   {}", actual);
+                    let _ = std::fs::remove_dir_all(&tmp_dir);
+                    return;
+                }
+            }
+        }
+        None => println!(
+            "  {} No published checksum to verify against",
+            style::warn("")
+        ),
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(
+            &tmp_bin,
+            std::fs::Permissions::from_mode(0o755),
+        );
+    }
+
+    // Atomic swap: copy to sibling temp name, then rename over the live binary.
     let mut tmp_name = current
         .file_name()
         .map(|n| n.to_os_string())
@@ -97,22 +203,44 @@ fn update() {
     tmp_name.push(format!(".tmp-{}", std::process::id()));
     let tmp = current.with_file_name(tmp_name);
 
-    if std::fs::copy(&new_binary, &tmp)
+    if std::fs::copy(&tmp_bin, &tmp)
         .and_then(|_| std::fs::rename(&tmp, &current))
         .is_err()
     {
         let _ = std::fs::remove_file(&tmp);
-        // Fallback: unlink the busy binary first, then copy fresh.
-        match std::fs::remove_file(&current).and_then(|_| std::fs::copy(&new_binary, &current)) {
+        match std::fs::remove_file(&current).and_then(|_| std::fs::copy(&tmp_bin, &current)) {
             Ok(_) => {}
             Err(e) => {
                 eprintln!("  {} Failed to install: {}", style::error(""), e);
+                let _ = std::fs::remove_dir_all(&tmp_dir);
                 return;
             }
         }
     }
 
-    println!("  {} Update complete.", style::success(""));
+    let _ = std::fs::remove_dir_all(&tmp_dir);
+    println!("  {} Updated to {}.", style::success(""), tag);
+    println!(
+        "  {} Run `proto --version` to confirm.",
+        style::muted("")
+    );
+}
+
+fn fetch_plain(url: &str) -> Option<String> {
+    let agent = ureq::Agent::new();
+    match agent.get(url).set("User-Agent", "proto-cli").call() {
+        Ok(response) => {
+            use std::io::Read;
+            let mut bytes = Vec::new();
+            response
+                .into_reader()
+                .read_to_end(&mut bytes)
+                .ok()?;
+            Some(String::from_utf8_lossy(&bytes).to_string())
+        }
+        Err(ureq::Error::Status(404, _)) => None,
+        Err(_) => None,
+    }
 }
 
 fn uninstall(purge: bool) {
